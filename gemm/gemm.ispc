@@ -1,5 +1,4 @@
 #define NUM_TASKS 8  // i7-7700K machine has 4 cores, 8 HW threads
-#define SIMD_WIDTH 4 // 256-bit wide instructions / 8-byte double precision values
 
 task void ispc_transpose_task(uniform double src[], uniform double dst[], uniform int n)
 {
@@ -33,18 +32,19 @@ task void gemm_ispc_task(
     uniform int row_start = taskIndex * num_rows;
     uniform int row_end = num_rows + row_start;
 
-    foreach (r = row_start ... row_end) {
+    uniform unsigned int r;
+    for (r = row_start; r < row_end; r++) {
         uniform unsigned int j, d;
-        varying double sum;
+        double sum;
         for (j = 0; j < n; j++) {
             #pragma ignore warning(perf)
-            sum = beta * C[r*n + j];
-            for (d = 0; d < n; d++) {
+            sum = 0;
+            for (d = 0; d < n; d += programCount) {
                 #pragma ignore warning(perf)
-                sum += alpha * A[r*n + d] * B[j*n + d];
+                sum += alpha * A[r*n + d + programIndex] * B[j*n + d + programIndex];
             }
             #pragma ignore warning(perf)
-            C[r*n + j] = sum;
+            C[r*n + j] = beta * C[r*n + j] + reduce_add(sum);
         }
     }
 }
