@@ -1,4 +1,25 @@
 #define NUM_TASKS 8  // i7-7700K machine has 4 cores, 8 HW threads
+
+task void ispc_transpose_task(uniform double src[], uniform double dst[], uniform int n)
+{
+    uniform int num_rows = n / taskCount;
+    uniform int row_start = num_rows * taskIndex;
+    uniform int row_end = row_start + num_rows;
+
+    uniform int c, r;
+    for (r = row_start; r < row_end; r++) {
+        for(c = 0; c < n; c += programCount) {
+            #pragma ignore warning(perf)
+            dst[(c + programIndex)*n + r] = src[r*n + c + programIndex];
+        }
+    }
+}
+
+export void ispc_transpose(uniform int n, uniform double src[], uniform double dst[])
+{
+    launch[NUM_TASKS] ispc_transpose_task(src, dst, n);
+}
+
 task void gemm_ispc_task(
     uniform int n,
     uniform double A[],
@@ -11,18 +32,18 @@ task void gemm_ispc_task(
     uniform int row_start = taskIndex * num_rows;
     uniform int row_end = num_rows + row_start;
 
-    foreach (r = row_start ... row_end) {
-        uniform unsigned int j, d;
-        varying double sum;
+    uniform unsigned int r, j, d;
+    double sum;
+    for (r = row_start; r < row_end; r++) {
         for (j = 0; j < n; j++) {
             #pragma ignore warning(perf)
-            sum = beta * C[r*n + j];
-            for (d = 0; d < n; d++) {
+            sum = 0;
+            for (d = 0; d < n; d += programCount) {
                 #pragma ignore warning(perf)
-                sum += alpha * A[r*n + d] * B[d*n + j];
+                sum += A[r*n + d + programIndex] * B[j*n + d + programIndex];
             }
             #pragma ignore warning(perf)
-            C[r*n + j] = sum;
+            C[r*n + j] = beta * C[r*n + j] + alpha * reduce_add(sum);
         }
     }
 }
