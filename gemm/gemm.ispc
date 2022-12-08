@@ -32,19 +32,18 @@ task void gemm_ispc_task(
     uniform int row_start = taskIndex * num_rows;
     uniform int row_end = num_rows + row_start;
 
-    uniform unsigned int r;
+    uniform unsigned int r, j, d;
+    double sum;
     for (r = row_start; r < row_end; r++) {
-        uniform unsigned int j, d;
-        double sum;
         for (j = 0; j < n; j++) {
             #pragma ignore warning(perf)
             sum = 0;
             for (d = 0; d < n; d += programCount) {
                 #pragma ignore warning(perf)
-                sum += alpha * A[r*n + d + programIndex] * B[j*n + d + programIndex];
+                sum += A[r*n + d + programIndex] * B[j*n + d + programIndex];
             }
             #pragma ignore warning(perf)
-            C[r*n + j] = beta * C[r*n + j] + reduce_add(sum);
+            C[r*n + j] = beta * C[r*n + j] + alpha * reduce_add(sum);
         }
     }
 }
