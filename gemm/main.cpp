@@ -145,10 +145,13 @@ int main(int argc, char *argv[]) {
         // Run your matrix multiply implementation. 
         printf("Running student GEMM... ");
         startTime = CycleTimer::currentSeconds();
-        ispc::gemm_ispc(m, n, k, A2, B2, C2, alpha, beta);
+        double* b_t = (double *)mkl_malloc( m*n*sizeof( double ), 64 );
+        ispc::ispc_transpose(n, B2, b_t);
+        ispc::gemm_ispc(m, n, k, A2, b_t, C2, alpha, beta);
         /* gemm(m, n, k, A2, B2, C2, alpha, beta); */
         endTime = CycleTimer::currentSeconds();
         printf("%.2lfms\n", (endTime - startTime)*1000);
+        free(b_t);
         minGEMM = std::min(minGEMM, endTime - startTime);
 
         // Run reference ISPC matrix multiply implementation. 
