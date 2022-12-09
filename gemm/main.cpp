@@ -14,7 +14,7 @@
 #include "gemm_ispc.h"
 #include "ref_gemm_ispc.h"
 
-#define N_ITERS 3 // how many times to run implementaions for timing
+#define N_ITERS 20 // how many times to run implementaions for timing
 
 // implement: C = alpha * A x B + beta * C
 extern void gemm(int m, int n, int k, double *A, double *B, double *C, double alpha, double beta);
@@ -149,9 +149,9 @@ int main(int argc, char *argv[]) {
         ispc::ispc_transpose(n, B2, b_t);
         ispc::gemm_ispc(m, n, k, A2, b_t, C2, alpha, beta);
         /* gemm(m, n, k, A2, B2, C2, alpha, beta); */
+        mkl_free(b_t);
         endTime = CycleTimer::currentSeconds();
         printf("%.2lfms\n", (endTime - startTime)*1000);
-        free(b_t);
         minGEMM = std::min(minGEMM, endTime - startTime);
 
         // Run reference ISPC matrix multiply implementation. 

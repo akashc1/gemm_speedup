@@ -38,9 +38,16 @@ task void gemm_ispc_task(
         for (j = 0; j < n; j++) {
             #pragma ignore warning(perf)
             sum = 0;
-            for (d = 0; d < n; d += programCount) {
+            for (d = 0; d < n; d += 8 * programCount) {
                 #pragma ignore warning(perf)
                 sum += A[r*n + d + programIndex] * B[j*n + d + programIndex];
+                sum += A[r*n + d + programIndex + programCount] * B[j*n + d + programIndex + programCount];
+                sum += A[r*n + d + programIndex + 2 * programCount] * B[j*n + d + programIndex + 2 * programCount];
+                sum += A[r*n + d + programIndex + 3 * programCount] * B[j*n + d + programIndex + 3 * programCount];
+                sum += A[r*n + d + programIndex + 4 * programCount] * B[j*n + d + programIndex + 4 * programCount];
+                sum += A[r*n + d + programIndex + 5 * programCount] * B[j*n + d + programIndex + 5 * programCount];
+                sum += A[r*n + d + programIndex + 6 * programCount] * B[j*n + d + programIndex + 6 * programCount];
+                sum += A[r*n + d + programIndex + 7 * programCount] * B[j*n + d + programIndex + 7 * programCount];
             }
             #pragma ignore warning(perf)
             C[r*n + j] = beta * C[r*n + j] + alpha * reduce_add(sum);
