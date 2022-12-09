@@ -1,6 +1,6 @@
 #define NUM_TASKS 8  // i7-7700K machine has 4 cores, 8 HW threads
 
-task void ispc_transpose_task(uniform double src[], uniform double dst[], uniform int n)
+task void ispc_transpose_task(uniform double src[], uniform double dst[], uniform int n, uniform double beta)
 {
     uniform int num_rows = n / taskCount;
     uniform int row_start = num_rows * taskIndex;
@@ -10,14 +10,14 @@ task void ispc_transpose_task(uniform double src[], uniform double dst[], unifor
     for (r = row_start; r < row_end; r++) {
         for(c = 0; c < n; c += programCount) {
             #pragma ignore warning(perf)
-            dst[(c + programIndex)*n + r] = src[r*n + c + programIndex];
+            dst[(c + programIndex)*n + r] = beta * src[r*n + c + programIndex];
         }
     }
 }
 
-export void ispc_transpose(uniform int n, uniform double src[], uniform double dst[])
+export void ispc_transpose(uniform int n, uniform double src[], uniform double dst[], uniform double beta)
 {
-    launch[NUM_TASKS] ispc_transpose_task(src, dst, n);
+    launch[NUM_TASKS] ispc_transpose_task(src, dst, n, beta);
 }
 
 task void gemm_ispc_task(
@@ -25,8 +25,7 @@ task void gemm_ispc_task(
     uniform double A[],
     uniform double B[],
     uniform double C[],
-    uniform double alpha,
-    uniform double beta)
+    uniform double alpha)
 {
     uniform int num_rows = n / taskCount;
     uniform int row_start = taskIndex * num_rows;
@@ -50,7 +49,7 @@ task void gemm_ispc_task(
                 sum += A[r*n + d + programIndex + 7 * programCount] * B[j*n + d + programIndex + 7 * programCount];
             }
             #pragma ignore warning(perf)
-            C[r*n + j] = beta * C[r*n + j] + alpha * reduce_add(sum);
+            C[r*n + j] += alpha * reduce_add(sum);
         }
     }
 }
@@ -62,8 +61,7 @@ export void gemm_ispc(
     uniform double A[],
     uniform double B[],
     uniform double C[],
-    uniform double alpha,
-    uniform double beta)
+    uniform double alpha)
 {
-    launch[NUM_TASKS] gemm_ispc_task(m, A, B, C, alpha, beta);
+    launch[NUM_TASKS] gemm_ispc_task(m, A, B, C, alpha);
 }

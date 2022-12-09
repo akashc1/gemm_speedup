@@ -146,8 +146,8 @@ int main(int argc, char *argv[]) {
         printf("Running student GEMM... ");
         startTime = CycleTimer::currentSeconds();
         double* b_t = (double *)mkl_malloc( m*n*sizeof( double ), 64 );
-        ispc::ispc_transpose(n, B2, b_t);
-        ispc::gemm_ispc(m, n, k, A2, b_t, C2, alpha, beta);
+        ispc::ispc_transpose(n, B2, b_t, beta);
+        ispc::gemm_ispc(m, n, k, A2, b_t, C2, alpha);
         /* gemm(m, n, k, A2, B2, C2, alpha, beta); */
         mkl_free(b_t);
         endTime = CycleTimer::currentSeconds();
