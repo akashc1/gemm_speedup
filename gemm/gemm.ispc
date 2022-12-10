@@ -1,4 +1,4 @@
-#define NUM_TASKS 8  // i7-7700K machine has 4 cores, 8 HW threads
+#define NUM_TASKS 16  // i7-7700K machine has 4 cores, 8 HW threads
 
 task void ispc_transpose_task(uniform double src[], uniform double dst[], uniform int n, uniform double beta)
 {
@@ -20,6 +20,8 @@ export void ispc_transpose(uniform int n, uniform double src[], uniform double d
     launch[NUM_TASKS] ispc_transpose_task(src, dst, n, beta);
 }
 
+#define BLOCK_SIZE 256
+
 task void gemm_ispc_task(
     uniform int n,
     uniform double A[],
@@ -31,25 +33,29 @@ task void gemm_ispc_task(
     uniform int row_start = taskIndex * num_rows;
     uniform int row_end = num_rows + row_start;
 
-    uniform unsigned int r, j, d;
+    uniform unsigned int r, j, d, c_start, r_start;
     double sum;
-    for (r = row_start; r < row_end; r++) {
-        for (j = 0; j < n; j++) {
-            #pragma ignore warning(perf)
-            sum = 0;
-            for (d = 0; d < n; d += 8 * programCount) {
-                #pragma ignore warning(perf)
-                sum += A[r*n + d + programIndex] * B[j*n + d + programIndex];
-                sum += A[r*n + d + programIndex + programCount] * B[j*n + d + programIndex + programCount];
-                sum += A[r*n + d + programIndex + 2 * programCount] * B[j*n + d + programIndex + 2 * programCount];
-                sum += A[r*n + d + programIndex + 3 * programCount] * B[j*n + d + programIndex + 3 * programCount];
-                sum += A[r*n + d + programIndex + 4 * programCount] * B[j*n + d + programIndex + 4 * programCount];
-                sum += A[r*n + d + programIndex + 5 * programCount] * B[j*n + d + programIndex + 5 * programCount];
-                sum += A[r*n + d + programIndex + 6 * programCount] * B[j*n + d + programIndex + 6 * programCount];
-                sum += A[r*n + d + programIndex + 7 * programCount] * B[j*n + d + programIndex + 7 * programCount];
+    for (r_start = 0; r_start < n; r_start += BLOCK_SIZE) {
+        for (c_start = 0; c_start < n; c_start += BLOCK_SIZE) {
+            for (j = r_start; j < r_start + BLOCK_SIZE; j++) {
+                for (r = row_start; r < row_end; r++) {
+                    #pragma ignore warning(perf)
+                    sum = 0;
+                    for (d = c_start; d < c_start + BLOCK_SIZE; d += 8 * programCount) {
+                        #pragma ignore warning(perf)
+                        sum += A[r*n + d + programIndex] * B[j*n + d + programIndex];
+                        sum += A[r*n + d + programIndex + programCount] * B[j*n + d + programIndex + programCount];
+                        sum += A[r*n + d + programIndex + 2 * programCount] * B[j*n + d + programIndex + 2 * programCount];
+                        sum += A[r*n + d + programIndex + 3 * programCount] * B[j*n + d + programIndex + 3 * programCount];
+                        sum += A[r*n + d + programIndex + 4 * programCount] * B[j*n + d + programIndex + 4 * programCount];
+                        sum += A[r*n + d + programIndex + 5 * programCount] * B[j*n + d + programIndex + 5 * programCount];
+                        sum += A[r*n + d + programIndex + 6 * programCount] * B[j*n + d + programIndex + 6 * programCount];
+                        sum += A[r*n + d + programIndex + 7 * programCount] * B[j*n + d + programIndex + 7 * programCount];
+                    }
+                    #pragma ignore warning(perf)
+                    C[r*n + j] += alpha * reduce_add(sum);
+                }
             }
-            #pragma ignore warning(perf)
-            C[r*n + j] += alpha * reduce_add(sum);
         }
     }
 }
